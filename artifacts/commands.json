@@ -680,7 +680,7 @@
         "folder"
       ],
       "example": "cd /sd/gcode",
-      "response": "ok"
+      "response": null
     },
     "pwd": {
       "name": "Print Working Directory",
@@ -706,7 +706,7 @@
         "filename"
       ],
       "example": "rm /sd/file.gcode",
-      "response": "ok"
+      "response": null
     },
     "mv": {
       "name": "Move File",
@@ -716,7 +716,7 @@
         "newfile"
       ],
       "example": "mv oldname newname",
-      "response": "ok"
+      "response": null
     },
     "play": {
       "name": "Play File",

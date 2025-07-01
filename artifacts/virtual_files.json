@@ -1,16 +1,16 @@
 [
     {
-        "path": "/gcodes/samplegcode.nc",
+        "path": "/sd/gcodes/samplegcode.nc",
         "size": 92,
         "contents": "G21 ; set units to millimeters\nG90 ; use absolute positioning\nG1 X10 Y10 F1000\nG1 X20 Y20"
     },
     {
-        "path": "/gcodes/T1.gcode",
+        "path": "/sd/gcodes/T1.gcode",
         "size": 200,
         "contents": "G21 ; set units to millimeters\nG90 ; use absolute positioning\nG1 X0 Y0 Z5 F500\nG1 X10 Y0 Z5\nG1 X10 Y10 Z5\nG1 X0 Y10 Z5\nG1 X0 Y0 Z5\nM2 ; end of program"
     },
     {
-        "path": "/gcodes/T2.cnc",
+        "path": "/sd/gcodes/T2.cnc",
         "size": 404,
         "contents": "G21\nG90\nG1 X0 Y0 Z0 F500\nG1 X5 Y5 Z-1\nG1 X10 Y5 Z-2\nG1 X15 Y10 Z-3\nG1 X20 Y10 Z-4\nG1 X25 Y15 Z-5\nG1 X30 Y15 Z-6\nG1 X35 Y20 Z-7\nG1 X40 Y20 Z-8\nG1 X45 Y25 Z-9\nG1 X50 Y25 Z-10\nG1 X55 Y30 Z-11\nG1 X60 Y30 Z-12\nG1 X65 Y35 Z-13\nG1 X70 Y35 Z-14\nM30"
     },
