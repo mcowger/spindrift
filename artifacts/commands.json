@@ -812,6 +812,28 @@
       "example": "model",
       "sends_ok": false,
       "time_ms": 50
+    },
+    "upload": {
+      "name": "Upload File",
+      "description": "Upload a file to the machine using XMODEM protocol",
+      "parameters": [
+        "filename"
+      ],
+      "example": "upload /sd/test.gcode",
+      "response": "",
+      "sends_ok": false,
+      "time_ms": 100
+    },
+    "download": {
+      "name": "Download File",
+      "description": "Download a file from the machine using XMODEM protocol",
+      "parameters": [
+        "filename"
+      ],
+      "example": "download /sd/test.gcode",
+      "response": "",
+      "sends_ok": false,
+      "time_ms": 100
     }
 
   },

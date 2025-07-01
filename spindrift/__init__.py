@@ -9,17 +9,19 @@ from .cnc import (
     CNC, Position, FeedInfo, SpindleInfo, ToolInfo, LaserInfo, CNCState,
     SwitchStates, SwitchLevels, SensorStates, WorkCoordinateSystem
 )
+from .xmodem import XMODEMProtocol
 
 __all__ = [
-    'CNC',
-    'Position',
-    'FeedInfo',
-    'SpindleInfo',
-    'ToolInfo',
-    'LaserInfo',
-    'CNCState',
-    'SwitchStates',
-    'SwitchLevels',
-    'SensorStates',
-    'WorkCoordinateSystem'
+    "CNC",
+    "Position",
+    "FeedInfo",
+    "SpindleInfo",
+    "ToolInfo",
+    "LaserInfo",
+    "CNCState",
+    "SwitchStates",
+    "SwitchLevels",
+    "SensorStates",
+    "WorkCoordinateSystem",
+    "XMODEMProtocol",
 ]

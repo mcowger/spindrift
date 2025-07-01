@@ -11,10 +11,13 @@ import logging
 import os
 import re
 import time
+import hashlib
+import io
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 
 from .logging_config import setup_logging, ColoredFormatter
+from .xmodem import XMODEMProtocol
 
 
 def _format_multiline_log(message: str, prefix: str) -> str:
@@ -408,6 +411,190 @@ class MockCNCServer:
 
         return "ok"
 
+    async def _handle_xmodem_command(
+        self,
+        command_line: str,
+        cmd_key: str,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        client_addr: str,
+    ) -> str:
+        """Handle XMODEM upload/download commands."""
+        parts = command_line.split()
+
+        if len(parts) < 2:
+            return f"ERROR: {cmd_key} requires a filename"
+
+        filename = parts[1]
+        normalized_path = self._normalize_path(filename, client_addr)
+
+        self.logger.info(f"Starting XMODEM {cmd_key} for file: {normalized_path}")
+
+        # Create blocking I/O adapters for XMODEM protocol
+        def getc(size: int, timeout: float = 1.0) -> Optional[bytes]:
+            """Blocking read adapter for XMODEM protocol."""
+            try:
+                # Use asyncio.run_coroutine_threadsafe to run async code in blocking context
+                loop = asyncio.get_event_loop()
+                future = asyncio.ensure_future(
+                    asyncio.wait_for(reader.read(size), timeout)
+                )
+                data = loop.run_until_complete(future)
+                if len(data) == size:
+                    return data
+                else:
+                    self.logger.debug(
+                        f"getc: requested {size} bytes, got {len(data)} bytes"
+                    )
+                    return None
+            except asyncio.TimeoutError:
+                self.logger.debug(
+                    f"getc: timeout after {timeout}s waiting for {size} bytes"
+                )
+                return None
+            except Exception as e:
+                self.logger.error(f"getc error: {e}")
+                return None
+
+        def putc(data: bytes, timeout: float = 1.0) -> Optional[int]:
+            """Blocking write adapter for XMODEM protocol."""
+            try:
+                loop = asyncio.get_event_loop()
+                writer.write(data)
+                future = asyncio.ensure_future(
+                    asyncio.wait_for(writer.drain(), timeout)
+                )
+                loop.run_until_complete(future)
+                self.logger.debug(f"putc: sent {len(data)} bytes")
+                return len(data)
+            except asyncio.TimeoutError:
+                self.logger.debug(
+                    f"putc: timeout after {timeout}s sending {len(data)} bytes"
+                )
+                return None
+            except Exception as e:
+                self.logger.error(f"putc error: {e}")
+                return None
+
+        # Create XMODEM protocol instance
+        self.logger.debug("Creating XMODEM protocol instance in 8K mode")
+        xmodem = XMODEMProtocol(getc, putc, mode="xmodem8k")
+
+        try:
+            if cmd_key == "upload":
+                return await self._handle_upload(xmodem, normalized_path, client_addr)
+            elif cmd_key == "download":
+                return await self._handle_download(xmodem, normalized_path, client_addr)
+        except Exception as e:
+            self.logger.error(f"XMODEM {cmd_key} error: {e}")
+            return f"ERROR: {cmd_key} failed - {str(e)}"
+
+        return ""
+
+    async def _handle_upload(
+        self, xmodem: XMODEMProtocol, filepath: str, client_addr: str
+    ) -> str:
+        """Handle file upload using XMODEM protocol."""
+        self.logger.info(f"Starting XMODEM upload receive for: {filepath}")
+        self.logger.debug(f"Upload initiated by client: {client_addr}")
+
+        # Create in-memory stream to receive file data
+        file_stream = io.BytesIO()
+
+        # Start XMODEM receive operation (blocking)
+        self.logger.debug("Beginning XMODEM receive operation (blocking)")
+        result = xmodem.receive_file(file_stream, md5_hash="", retry=10)
+        self.logger.debug(f"XMODEM receive completed with result: {result}")
+
+        if result is None:
+            self.logger.error(f"Upload failed for {filepath}")
+            return "ERROR: Upload failed"
+        elif result == -1:
+            self.logger.info(f"Upload canceled by user for {filepath}")
+            return "ERROR: Upload canceled"
+        elif result == 0:
+            self.logger.info(f"Upload canceled - MD5 match for {filepath}")
+            return "Upload canceled - file already exists with same content"
+        else:
+            # Upload successful, add file to virtual filesystem
+            file_data = file_stream.getvalue()
+            file_stream.close()
+
+            # Calculate MD5 for the uploaded file
+            md5_hash = hashlib.md5(file_data).hexdigest()
+            self.logger.debug(f"Calculated MD5 for uploaded file: {md5_hash}")
+
+            # Add to virtual filesystem
+            self._add_virtual_file(filepath, file_data, md5_hash)
+
+            self.logger.info(
+                f"Upload completed successfully: {filepath} ({result} bytes, MD5: {md5_hash})"
+            )
+            return ""  # Empty response for successful upload
+
+    async def _handle_download(
+        self, xmodem: XMODEMProtocol, filepath: str, client_addr: str
+    ) -> str:
+        """Handle file download using XMODEM protocol."""
+        self.logger.info(f"Starting XMODEM download send for: {filepath}")
+        self.logger.debug(f"Download requested by client: {client_addr}")
+
+        # Check if file exists in virtual filesystem
+        if filepath not in self.virtual_files:
+            self.logger.error(f"Download failed: file not found - {filepath}")
+            return f"ERROR: File not found: {filepath}"
+
+        file_info = self.virtual_files[filepath]
+        file_data = file_info.get("contents", "").encode("utf-8")
+        md5_hash = hashlib.md5(file_data).hexdigest()
+
+        self.logger.debug(f"File found: {len(file_data)} bytes, MD5: {md5_hash}")
+
+        # Create stream from file data
+        file_stream = io.BytesIO(file_data)
+
+        # Start XMODEM send operation (blocking)
+        self.logger.debug("Beginning XMODEM send operation (blocking)")
+        result = xmodem.send_file(file_stream, md5_hash, retry=10)
+        file_stream.close()
+        self.logger.debug(f"XMODEM send completed with result: {result}")
+
+        if result is None:
+            self.logger.error(f"Download canceled for {filepath}")
+            return "ERROR: Download canceled"
+        elif result is False:
+            self.logger.error(f"Download failed for {filepath}")
+            return "ERROR: Download failed"
+        else:
+            self.logger.info(
+                f"Download completed successfully: {filepath} ({len(file_data)} bytes, MD5: {md5_hash})"
+            )
+            return ""  # Empty response for successful download
+
+    def _add_virtual_file(self, filepath: str, data: bytes, md5_hash: str):
+        """Add a file to the virtual filesystem."""
+        # Convert bytes to string for storage (assuming text files for now)
+        try:
+            content = data.decode("utf-8")
+        except UnicodeDecodeError:
+            # For binary files, store as base64 or handle differently
+            import base64
+
+            content = base64.b64encode(data).decode("ascii")
+            # Mark as binary file
+            filepath += ".b64"
+
+        self.virtual_files[filepath] = {
+            "path": filepath,
+            "size": len(data),
+            "contents": content,
+            "md5": md5_hash,
+        }
+
+        self.logger.info(
+            f"Added file to virtual filesystem: {filepath} ({len(data)} bytes)"
+        )
+
     def _get_response(self, cmd_def: Dict[str, Any]) -> str:
         """Get the response for a command."""
         response = cmd_def.get("response", "ok")
@@ -471,6 +658,11 @@ class MockCNCServer:
                     elif cmd_key in ["ls", "pwd", "cd", "cat", "mv", "rm"]:
                         response = self._handle_filesystem_command(
                             command_line, cmd_key, client_addr_str
+                        )
+                    elif cmd_key in ["upload", "download"]:
+                        # XMODEM file transfer commands - these are blocking operations
+                        response = await self._handle_xmodem_command(
+                            command_line, cmd_key, reader, writer, client_addr_str
                         )
                     else:
                         # Get response for known command
