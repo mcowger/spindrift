@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Python: Current File",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
@@ -11,7 +11,7 @@
         },
         {
             "name": "Python: Module",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "spindrift",
             "console": "integratedTerminal",
@@ -19,12 +19,49 @@
         },
         {
             "name": "Python: Pytest",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "pytest",
             "args": [
                 "${workspaceFolder}/tests",
                 "-v"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Mock CNC Server",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "spindrift.mock_server",
+            "args": [
+                "mock-server"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Mock CNC Server (Verbose)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "spindrift.mock_server",
+            "args": [
+                "mock-server",
+                "--verbose"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "Mock CNC Server (Custom Port)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "spindrift.mock_server",
+            "args": [
+                "mock-server",
+                "--port",
+                "3333",
+                "--verbose"
             ],
             "console": "integratedTerminal",
             "justMyCode": true
