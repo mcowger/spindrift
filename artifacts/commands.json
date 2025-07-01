@@ -1,0 +1,889 @@
+{
+  "g_codes": {
+    "G0": {
+      "name": "Rapid Move",
+      "description": "Move to the given coordinates. Tool will be off during this move. This is a 'go to' move rather than a 'do while going to' move.",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "A",
+        "F"
+      ],
+      "example": "G0 X10 Y5 F100",
+      "modal": true,
+      "response": "ok"
+    },
+    "G1": {
+      "name": "Linear Move",
+      "description": "Move to the given coordinates with tool active. Takes the same F parameter as G0.",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "A",
+        "F"
+      ],
+      "example": "G1 X20 Y2.3 F200",
+      "modal": true,
+      "response": "ok"
+    },
+    "G2": {
+      "name": "Clockwise Arc",
+      "description": "Clockwise circular motion: go to point with coordinates XYZ while rotating around point with relative coordinates IJ",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "I",
+        "J",
+        "K",
+        "F"
+      ],
+      "example": "G2 X10 J5",
+      "modal": false,
+      "response": "ok"
+    },
+    "G3": {
+      "name": "Counter-clockwise Arc",
+      "description": "Counter-clockwise motion: see G2",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "I",
+        "J",
+        "K",
+        "F"
+      ],
+      "example": "G3 Y5 X10 I2",
+      "modal": false,
+      "response": "ok"
+    },
+    "G4": {
+      "name": "Dwell",
+      "description": "Dwell for specified time. S in seconds or P in milliseconds (grbl mode P is float seconds)",
+      "parameters": [
+        "S",
+        "P"
+      ],
+      "example": "G4 P1000",
+      "modal": false,
+      "response": "ok"
+    },
+    "G10": {
+      "name": "Set Coordinates",
+      "description": "set workspace coordinates (with L parameter)",
+      "parameters": [
+        "L",
+        "P",
+        "X",
+        "Y",
+        "Z"
+      ],
+      "example": "G10 L2 P1 X0",
+      "modal": false,
+      "response": "ok"
+    },
+    "G17": {
+      "name": "XY Plane",
+      "description": "Select XYZ plane",
+      "parameters": [],
+      "example": "G17",
+      "modal": true,
+      "response": "ok"
+    },
+    "G18": {
+      "name": "XZ Plane",
+      "description": "Select XZY plane",
+      "parameters": [],
+      "example": "G18",
+      "modal": true,
+      "response": "ok"
+    },
+    "G19": {
+      "name": "YZ Plane",
+      "description": "Select YZX plane",
+      "parameters": [],
+      "example": "G19",
+      "modal": true,
+      "response": "ok"
+    },
+    "G20": {
+      "name": "Inch Mode",
+      "description": "Inch mode: passed coordinates will be considered as Inches, internally translated to millimeters",
+      "parameters": [],
+      "example": "G20",
+      "modal": true,
+      "response": "ok"
+    },
+    "G21": {
+      "name": "Millimeter Mode",
+      "description": "Millimeter mode (default): passed coordinates will be considered as millimeters",
+      "parameters": [],
+      "example": "G21",
+      "modal": true,
+      "response": "ok"
+    },
+    "G28": {
+      "name": "Home",
+      "description": "Goto clearance position on the Carvera",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "A"
+      ],
+      "example": "G28",
+      "modal": false,
+      "response": "ok"
+    },
+    "G32": {
+      "name": "Delta Calibration/Grid Probe",
+      "description": "G32 probes the grid and turns the compensation on, this will remain in effect until reset or M370, X and Y are the start position, A and B are the width and length, I and J are the grid size, H is the height.",
+      "parameters": [
+        "X",
+        "Y",
+        "B",
+        "A",
+        "H",
+        "I",
+        "J",
+        "R"
+      ],
+      "example": "G32 R1 X0 Y0 A10 B10 H2",
+      "modal": false,
+      "response": "calibration results"
+    },
+    "G38.2": {
+      "name": "Probe Toward",
+      "description": "Standard probe command - probe toward workpiece, stop on contact, signal error if failure",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "F"
+      ],
+      "example": "G38.2 Z-10",
+      "modal": false,
+      "response": "probe result or error"
+    },
+    "G38.3": {
+      "name": "Probe Toward (No Error)",
+      "description": "Standard probe command - probe toward workpiece, stop on contact, no error if failure",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "F"
+      ],
+      "example": "G38.3 Z-10",
+      "modal": false,
+      "response": "probe result"
+    },
+    "G38.4": {
+      "name": "Probe Away",
+      "description": "Standard probe command - probe away from workpiece, stop on loss of contact, signal error if failure",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "F"
+      ],
+      "example": "G38.4 Z10",
+      "modal": false,
+      "response": "probe result or error"
+    },
+    "G38.5": {
+      "name": "Probe Away (No Error)",
+      "description": "Standard probe command - probe away from workpiece, stop on loss of contact, no error if failure",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "F"
+      ],
+      "example": "G38.5 Z10",
+      "modal": false,
+      "response": "probe result"
+    },
+    "G53": {
+      "name": "Machine Coordinate System",
+      "description": "Must be on a line by itself OR the first G code on a line, the directly following G0/G1 will be executed in MCS coordinates",
+      "parameters": [],
+      "example": "G53 G0 X0 Y0",
+      "modal": false,
+      "response": "ok"
+    },
+    "G54": {
+      "name": "Work Coordinate System 1",
+      "description": "Use workspace coordinates G54",
+      "parameters": [],
+      "example": "G54",
+      "modal": true,
+      "response": "ok"
+    },
+    "G55": {
+      "name": "Work Coordinate System 2",
+      "description": "Use workspace coordinates G55",
+      "parameters": [],
+      "example": "G55",
+      "modal": true,
+      "response": "ok"
+    },
+    "G56": {
+      "name": "Work Coordinate System 3",
+      "description": "Use workspace coordinates G56",
+      "parameters": [],
+      "example": "G56",
+      "modal": true,
+      "response": "ok"
+    },
+    "G57": {
+      "name": "Work Coordinate System 4",
+      "description": "Use workspace coordinates G57",
+      "parameters": [],
+      "example": "G57",
+      "modal": true,
+      "response": "ok"
+    },
+    "G58": {
+      "name": "Work Coordinate System 5",
+      "description": "Use workspace coordinates G58",
+      "parameters": [],
+      "example": "G58",
+      "modal": true,
+      "response": "ok"
+    },
+    "G59": {
+      "name": "Work Coordinate System 6",
+      "description": "Use workspace coordinates G59",
+      "parameters": [],
+      "example": "G59",
+      "modal": true,
+      "response": "ok"
+    },
+    "G90": {
+      "name": "Absolute Mode",
+      "description": "Absolute mode (default): passed coordinates will be considered absolute (relative to 0.0.0)",
+      "parameters": [],
+      "example": "G90",
+      "modal": true,
+      "response": "ok"
+    },
+    "G91": {
+      "name": "Relative Mode",
+      "description": "Relative mode: passed coordinates will be considered relative to the current point",
+      "parameters": [],
+      "example": "G91",
+      "modal": true,
+      "response": "ok"
+    },
+    "G92": {
+      "name": "Set Position",
+      "description": "Set current position to specified coordinates",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "A"
+      ],
+      "example": "G92 X0 Y0 Z0",
+      "modal": false,
+      "response": "ok"
+    },
+    "G92.1": {
+      "name": "Clear G92 Offsets",
+      "description": "Clear the G92 and G30 offsets",
+      "parameters": [],
+      "example": "G92.1",
+      "modal": false,
+      "response": "ok"
+    },
+    "G92.4": {
+      "name": "Set Machine Position",
+      "description": "Manually set homing (MCS) for XYZ",
+      "parameters": [
+        "X",
+        "Y",
+        "Z"
+      ],
+      "example": "G92.4 X0 Y0 Z0",
+      "modal": false,
+      "response": "ok"
+    }
+  },
+  "m_codes": {
+    "M3": {
+      "name": "Spindle On (CW)",
+      "description": "Starts the spindle clockwise. Only if spindle module is enabled. The S parameter sets the speed in RPM",
+      "parameters": [
+        "S"
+      ],
+      "example": "M3 S5000",
+      "response": "ok"
+    },
+    "M5": {
+      "name": "Spindle Off",
+      "description": "Stops the spindle. Only if spindle module is enabled",
+      "parameters": [],
+      "example": "M5",
+      "response": "ok"
+    },
+    "M6": {
+      "name": "Auto Tool Change",
+      "description": "Auto tool change, T0 indicates wireless probe, T-1 indicates None",
+      "parameters": [
+        "T"
+      ],
+      "example": "M6 T1",
+      "response": "ok"
+    },
+    "M7": {
+      "name": "Starts the airflow",
+      "description": "EStarts the airflow",
+      "parameters": [],
+      "example": "M7",
+      "response": "ok"
+    },
+    "M9": {
+      "name": "Set Position",
+      "description": "Stops the airflow",
+      "parameters": [],
+      "example": "M9",
+      "response": "ok"
+    },
+    "M30": {
+      "name": "End of the program, no action on the Carvera",
+      "description": "DEnd of the program, no action on the Carvera",
+      "parameters": [],
+      "example": "M30",
+      "response": "ok"
+    },
+    "M105": {
+      "name": "Read Temperature",
+      "description": "Read the current spindle temperature",
+      "parameters": [],
+      "example": "M105",
+      "response": "23.8"
+    },
+    "M220": {
+      "name": "Set Feed Rate Scale",
+      "description": "Set feed rate override percentage",
+      "parameters": [
+        "S"
+      ],
+      "example": "M220 S100",
+      "response": "ok"
+    },
+    "M223": {
+      "name": "Set Spindle Scale",
+      "description": "Set spindle speed override percentage",
+      "parameters": [
+        "S"
+      ],
+      "example": "M223 S100",
+      "response": "ok"
+    },
+    "M321": {
+      "name": "Laser Mode On",
+      "description": "Enable laser mode",
+      "parameters": [],
+      "example": "M321",
+      "response": "ok"
+    },
+    "M322": {
+      "name": "Laser Mode Off",
+      "description": "Disable laser mode",
+      "parameters": [],
+      "example": "M322",
+      "response": "ok"
+    },
+    "M323": {
+      "name": "Laser Test On",
+      "description": "Enable laser test mode",
+      "parameters": [],
+      "example": "M323",
+      "response": "ok"
+    },
+    "M324": {
+      "name": "Laser Test Off",
+      "description": "Disable laser test mode",
+      "parameters": [],
+      "example": "M324",
+      "response": "ok"
+    },
+    "M325": {
+      "name": "Set Laser Scale",
+      "description": "Set laser power scale percentage",
+      "parameters": [
+        "S"
+      ],
+      "example": "M325 S50",
+      "response": "ok"
+    },
+    "M331": {
+      "name": "Vacuum Mode On",
+      "description": "Enable vacuum mode",
+      "parameters": [],
+      "example": "M331",
+      "response": "ok"
+    },
+    "M332": {
+      "name": "Vacuum Mode Off",
+      "description": "Disable vacuum mode",
+      "parameters": [],
+      "example": "M332",
+      "response": "ok"
+    },
+    "M370": {
+      "name": "Clear Auto Leveling",
+      "description": "Clear auto leveling data",
+      "parameters": [],
+      "example": "M370",
+      "response": "ok"
+    },
+    "M471": {
+      "name": "Pair Workpiece",
+      "description": "Pair workpiece sensor",
+      "parameters": [],
+      "example": "M471",
+      "response": "ok"
+    },
+    "M490.1": {
+      "name": "Clamp Tool",
+      "description": "Clamp tool in spindle",
+      "parameters": [],
+      "example": "M490.1",
+      "response": "ok"
+    },
+    "M490.2": {
+      "name": "Unclamp Tool",
+      "description": "Unclamp tool from spindle",
+      "parameters": [],
+      "example": "M490.2",
+      "response": "ok"
+    },
+    "M491": {
+      "name": "Calibrate Tool",
+      "description": "Calibrate tool length",
+      "parameters": [],
+      "example": "M491",
+      "response": "ok"
+    },
+    "M493.2": {
+      "name": "Set Tool",
+      "description": "Set current tool without changing",
+      "parameters": [
+        "T"
+      ],
+      "example": "M493.2 T1",
+      "response": "ok"
+    },
+    "M495": {
+      "name": "Auto Level/Probe",
+      "description": "Auto leveling and probing command",
+      "parameters": [
+        "X",
+        "Y",
+        "C",
+        "D",
+        "A",
+        "B",
+        "I",
+        "J",
+        "H",
+        "O",
+        "F",
+        "P"
+      ],
+      "example": "M495 X0 Y0 A100 B100 I3 J3 H5",
+      "response": "ok"
+    },
+    "M495.3": {
+      "name": "XYZ Probe",
+      "description": "3-axis probe operation",
+      "parameters": [
+        "H",
+        "D"
+      ],
+      "example": "M495.3 H9.0 D3.175",
+      "response": "ok"
+    },
+    "M496.1": {
+      "name": "Go to Clearance",
+      "description": "Move to clearance position",
+      "parameters": [],
+      "example": "M496.1",
+      "response": "ok"
+    },
+    "M496.2": {
+      "name": "Go to Work Origin",
+      "description": "Move to work origin",
+      "parameters": [],
+      "example": "M496.2",
+      "response": "ok"
+    },
+    "M496.3": {
+      "name": "Go to Anchor1",
+      "description": "Move to anchor point 1",
+      "parameters": [],
+      "example": "M496.3",
+      "response": "ok"
+    },
+    "M496.4": {
+      "name": "Go to Anchor2",
+      "description": "Move to anchor point 2",
+      "parameters": [],
+      "example": "M496.4",
+      "response": "ok"
+    },
+    "M496.5": {
+      "name": "Go to Path Origin",
+      "description": "Move to path origin position",
+      "parameters": [
+        "X",
+        "Y"
+      ],
+      "example": "M496.5 X0 Y0",
+      "response": "ok"
+    },
+    "M801": {
+      "name": "Vacuum On",
+      "description": "Turn on vacuum with power setting",
+      "parameters": [
+        "S"
+      ],
+      "example": "M801 S100",
+      "response": "ok"
+    },
+    "M802": {
+      "name": "Vacuum Off",
+      "description": "Turn off vacuum",
+      "parameters": [],
+      "example": "M802",
+      "response": "ok"
+    },
+    "M811": {
+      "name": "Spindle Fan On",
+      "description": "Turn on spindle fan with power setting",
+      "parameters": [
+        "S"
+      ],
+      "example": "M811 S100",
+      "response": "ok"
+    },
+    "M812": {
+      "name": "Spindle Fan Off",
+      "description": "Turn off spindle fan",
+      "parameters": [],
+      "example": "M812",
+      "response": "ok"
+    },
+    "M821": {
+      "name": "Light On",
+      "description": "Turn on work light",
+      "parameters": [],
+      "example": "M821",
+      "response": "ok"
+    },
+    "M822": {
+      "name": "Light Off",
+      "description": "Turn off work light",
+      "parameters": [],
+      "example": "M822",
+      "response": "ok"
+    },
+    "M831": {
+      "name": "Tool Sensor On",
+      "description": "Turn on tool sensor power",
+      "parameters": [],
+      "example": "M831",
+      "response": "ok"
+    },
+    "M832": {
+      "name": "Tool Sensor Off",
+      "description": "Turn off tool sensor power",
+      "parameters": [],
+      "example": "M832",
+      "response": "ok"
+    },
+    "M841": {
+      "name": "Workpiece Charge On",
+      "description": "Turn on workpiece charge power",
+      "parameters": [],
+      "example": "M841",
+      "response": "ok"
+    },
+    "M842": {
+      "name": "Workpiece Charge Off",
+      "description": "Turn off workpiece charge power",
+      "parameters": [],
+      "example": "M842",
+      "response": "ok"
+    },
+    "M851": {
+      "name": "External Control On",
+      "description": "Turn on external control with PWM setting",
+      "parameters": [
+        "S"
+      ],
+      "example": "M851 S100",
+      "response": "ok"
+    },
+    "M852": {
+      "name": "External Control Off",
+      "description": "Turn off external control",
+      "parameters": [],
+      "example": "M852",
+      "response": "ok"
+    }
+  },
+  "console_commands": {
+    "help": {
+      "name": "Help",
+      "description": "Give a list of commands",
+      "parameters": [],
+      "example": "help",
+      "response": "command list"
+    },
+    "version": {
+      "name": "Version",
+      "description": "Display firmware version information",
+      "parameters": [],
+      "example": "version",
+      "response": "version = 1.0.3c1.0.6"
+    },
+    "mem": {
+      "name": "Memory Info",
+      "description": "Returns information about RAM usage. Use -v for verbose",
+      "parameters": [
+        "-v"
+      ],
+      "example": "mem -v",
+      "response": "Unused Heap: 1232 bytes\nUsed Heap Size: 24992\nAllocated: 17720, Free: 5728\nTotal Free RAM: 6960 bytes\nFree AHB0: 6312, AHB1: 4088\nBlock size: 88 bytes, Tickinfo size: 280 bytes"
+    },
+    "ls": {
+      "name": "List Files",
+      "description": "List files in current or specified folder. Use -s to show file sizes",
+      "parameters": [
+        "-s",
+        "folder"
+      ],
+      "example": "ls -s /sd/",
+      "response": "ud/\nsd/"
+    },
+    "cd": {
+      "name": "Change Directory",
+      "description": "Change the current folder to the folder passed as parameter",
+      "parameters": [
+        "folder"
+      ],
+      "example": "cd /sd/gcode",
+      "response": "ok"
+    },
+    "pwd": {
+      "name": "Print Working Directory",
+      "description": "Shows the current folder",
+      "parameters": [],
+      "example": "pwd",
+      "response": "/sd/gcode"
+    },
+    "cat": {
+      "name": "Display File",
+      "description": "Outputs the content of the file. Optional limit parameter for number of lines",
+      "parameters": [
+        "file",
+        "limit"
+      ],
+      "example": "cat filename 10",
+      "response": "file contents"
+    },
+    "rm": {
+      "name": "Remove File",
+      "description": "Removes a file",
+      "parameters": [
+        "filename"
+      ],
+      "example": "rm /sd/file.gcode",
+      "response": "ok"
+    },
+    "mv": {
+      "name": "Move File",
+      "description": "Move/rename a file",
+      "parameters": [
+        "file",
+        "newfile"
+      ],
+      "example": "mv oldname newname",
+      "response": "ok"
+    },
+    "play": {
+      "name": "Play File",
+      "description": "Executes a file line by line. Use -v for verbose output",
+      "parameters": [
+        "file",
+        "-v"
+      ],
+      "example": "play /sd/gcode_file -v",
+      "response": "ok"
+    },
+    "progress": {
+      "name": "Show Progress",
+      "description": "Displays the current status of execution of the play command",
+      "parameters": [],
+      "example": "progress",
+      "response": "23"
+    },
+    "abort": {
+      "name": "Abort",
+      "description": "Stops an execution of play",
+      "parameters": [],
+      "example": "abort",
+      "response": "ok"
+    },
+    "suspend": {
+      "name": "Suspend",
+      "description": "Suspend a job in progress, save state",
+      "parameters": [],
+      "example": "suspend",
+      "response": "ok"
+    },
+    "resume": {
+      "name": "Resume",
+      "description": "Resume a suspended job, restore position",
+      "parameters": [],
+      "example": "resume",
+      "response": "ok"
+    },
+    "reset": {
+      "name": "Reset",
+      "description": "Reset smoothie",
+      "parameters": [],
+      "example": "reset",
+      "response": "system reset"
+    },
+    "config-get": {
+      "name": "Get Config",
+      "description": "Outputs the value of configuration setting. WARNING: Uses huge memory, may crash",
+      "parameters": [
+        "source",
+        "setting"
+      ],
+      "example": "config-get acceleration",
+      "response": "config value"
+    },
+    "config-set": {
+      "name": "Set Config",
+      "description": "Changes the value of configuration setting. Requires reset to take effect",
+      "parameters": [
+        "source",
+        "setting",
+        "value"
+      ],
+      "example": "config-set sd acceleration 1000",
+      "response": "ok"
+    }
+  },
+  "host_commands": {
+    "$G": {
+      "name": "Get State",
+      "description": "Get GCODE State",
+      "parameters": [],
+      "example": "$I",
+      "response": "[G0 G54 G17 G21 G90 G94 M0 M5 M9 T0 F3000.0000 S1.0000]",
+      "sends_ok": true,
+      "time_ms": 20000
+    },
+    "$I": {
+      "name": "Get State (Instant)",
+      "description": "Same as $G but sends no ok and is instant",
+      "parameters": [],
+      "example": "$I",
+      "response": "[G0 G54 G17 G21 G90 G94 M0 M5 M9 T0 F3000.0000 S1.0000]",
+      "sends_ok": false,
+      "time_ms": 100
+    },
+    "$H": {
+      "name": "Home",
+      "description": "Home all axes",
+      "parameters": [],
+      "example": "$H",
+      "time_ms": 20000,
+      "sends_ok": true
+    },
+    "$J": {
+      "name": "Jog",
+      "description": "Issue jog command, axis can be XYZA",
+      "parameters": [
+        "X",
+        "Y",
+        "Z",
+        "A"
+      ],
+      "example": "$J X-10 Y-5 Z-5",
+      "time_ms": 20000,
+      "sends_ok": true
+    },
+    "$S": {
+      "name": "Switch State",
+      "description": "Return switch state(s) for the named switches",
+      "parameters": [
+        "switch_name"
+      ],
+      "example": "$S endstops",
+      "response": "switch states"
+    },
+    "$X": {
+      "name": "Release Alarm",
+      "description": "Release ALARM state",
+      "parameters": [],
+      "example": "$X",
+      "sends_ok": false,
+      "time_ms": 1000
+    },
+    "$#": {
+      "name": "Get WCS",
+      "description": "Returns the WCS states and values",
+      "parameters": [],
+      "example": "$#",
+      "response": "[G54:-288.6600,-202.0800,-71.9031,nan,0.0000]\n[G55:0.0000,0.0000,nan,nan,0.0000]\n[G56:0.0000,0.0000,nan,nan,0.0000]\n[G57:0.0000,0.0000,nan,nan,0.0000]\n[G58:0.0000,0.0000,nan,nan,0.0000]\n[G59:0.0000,0.0000,nan,nan,0.0000]\n[G59.1:0.0000,0.0000,0.0000,0.0000,0.0000]\n[G59.2:0.0000,0.0000,0.0000,0.0000,0.0000]\n[G59.3:0.0000,0.0000,0.0000,0.0000,0.0000]\n[G28:0.0000,0.0000,0.0000]\n[G30:0.0000,0.0000,0.0000]\n[G92:0.0000,0.0000,0.0000,0.0000,0.0000]\n[TL0:-7.2078]\n[PRB:0.0000,0.0000,0.0000:0]",
+      "sends_ok": true,
+      "time_ms": 1000
+    },
+    "?": {
+      "name": "Status Query",
+      "description": "Instantly returns the current running state, axis positions, feedrates and temperatures",
+      "parameters": [],
+      "example": "?",
+      "response": "<Idle|MPos:0.0000,0.0000,470.7656,85.1522|WPos:0.0000,0.0000,470.5656|F:15000.0,279.0|T:22.2,0.0|B:22.2,0.0>",
+      "sends_ok": false,
+      "time_ms": 200
+    },
+    "!": {
+      "name": "Feed Hold",
+      "description": "Pause/hold current operation",
+      "parameters": [],
+      "example": "!",
+      "sends_ok": true,
+      "time_ms": 1000
+    },
+    "~": {
+      "name": "Cycle Start",
+      "description": "Resume from feed hold",
+      "parameters": [],
+      "example": "~",
+      "sends_ok": true,
+      "time_ms": 1000
+    },
+    "^X": {
+      "name": "Soft Reset",
+      "description": "Soft reset (Control-X character)",
+      "parameters": [],
+      "example": "^X",
+      "response": "ALARM: Abort during cycle",
+      "sends_ok": true,
+      "time_ms": 1000
+    }
+  }
+}
