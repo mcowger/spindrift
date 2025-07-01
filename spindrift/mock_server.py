@@ -14,7 +14,42 @@ import time
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 
-from .logging_config import setup_logging
+from .logging_config import setup_logging, ColoredFormatter
+
+
+def _format_multiline_log(message: str, prefix: str) -> str:
+    """
+    Format multi-line messages for logging with proper alignment.
+
+    Args:
+        message: The message to format (may contain newlines)
+        prefix: The prefix (e.g., "RECV", "SEND") for the first line
+
+    Returns:
+        Formatted message with aligned continuation lines
+    """
+    if "\n" not in message:
+        return f"[{ColoredFormatter.COLORS[prefix]}{prefix}{ColoredFormatter.COLORS['RESET']}]: {message}"
+
+    lines = message.split("\n")
+
+    # Calculate padding: [LEVEL    ] [HH:MM:SS] [PREFIX]:
+    # [INFO    ] = 10 chars, [HH:MM:SS] = 10 chars, [PREFIX]: varies
+    # Total base padding: 10 + 1 + 10 + 1 = 22 chars
+    # Plus prefix length + ]: = len(prefix) + 3
+    padding_length = 22 + len(prefix) + 3
+    padding = " " * padding_length
+
+    # Format first line with full prefix
+    result_lines = [
+        f"[{ColoredFormatter.COLORS[prefix]}{prefix}{ColoredFormatter.COLORS['RESET']}]: {lines[0]}"
+    ]
+
+    # Format continuation lines with padding
+    for line in lines[1:]:
+        result_lines.append(f"{padding}{line}")
+
+    return "\n".join(result_lines)
 
 
 class MockCNCServer:
@@ -420,7 +455,7 @@ class MockCNCServer:
                 if not command_line:
                     continue
 
-                self.logger.info(f"[RECV]: {command_line}")
+                self.logger.info(_format_multiline_log(command_line, "RECV"))
 
                 # Parse and process command
                 cmd_key, cmd_def = self._parse_command(command_line)
@@ -453,7 +488,7 @@ class MockCNCServer:
                     writer.write(b"ok\n")
 
                 await writer.drain()
-                self.logger.info(f"[SEND]: {response}")
+                self.logger.info(_format_multiline_log(response, "SEND"))
 
         except asyncio.CancelledError:
             self.logger.info("Connection cancelled")
