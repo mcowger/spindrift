@@ -223,15 +223,20 @@ class CNC:
     def parse_status_response(self, response: str) -> bool:
         """
         Parse status response from CNC machine (? command).
-        
+
         Format: <Idle|MPos:-1.0000,-1.0000,-1.0000,0.0000,0.0000|WPos:287.6600,201.0800,78.1109,nan,0.0000|F:0.0,3000.0,100.0|S:0.0,12000.0,100.0,0,23.2,24.2|T:2,-7.208,-1|W:0.00|L:0, 0, 0, 0.0,100.0|C:2,1,0,1>
-        
+
         Args:
             response: Status response string from CNC machine
-            
+
         Returns:
             bool: True if parsing was successful, False otherwise
         """
+        if not response or not isinstance(response, str):
+            return False
+
+        # Strip whitespace and check format
+        response = response.strip()
         if not response.startswith('<') or not response.endswith('>'):
             return False
             
@@ -381,6 +386,11 @@ class CNC:
         Returns:
             bool: True if parsing was successful, False otherwise
         """
+        if not response or not isinstance(response, str):
+            return False
+
+        # Strip whitespace and check format
+        response = response.strip()
         if not response.startswith('{') or not response.endswith('}'):
             return False
 
@@ -485,6 +495,11 @@ class CNC:
         Returns:
             bool: True if parsing was successful, False otherwise
         """
+        if not response or not isinstance(response, str):
+            return False
+
+        # Strip whitespace and check format
+        response = response.strip()
         if not response.startswith('[') or not response.endswith(']'):
             return False
 
