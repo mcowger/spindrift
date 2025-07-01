@@ -66,12 +66,17 @@
 
 # Mill Status Tracking and Modeling
 
-- [ ] Create a class that can track the state of the mill, along with its actions. It should be called 'CNCMachine' or similar.
+- [ ] Create a class that can track the state of the mill, along with its actions. It should be called 'CNC' or similar.
 - [ ] It should be able to handle position, feedrate, spindle speed, tool number, and other relevant state.
 - [ ] It should be able to handle updates from the mock server.
 - [ ] It should be able to handle updates from the real CNC machine.
 - [ ] Use the information from artifacts/commands.json and artifacts/mockdata to understand the information available and how it is structured.
 - [ ] Of key importantce is the ability to parse the status/? responses from the CNC machine and update the state of the mill accordingly.
+- [  ] Parsing the status output ('?' command)
+- [ ] You can review https://raw.githubusercontent.com/Carvera-Community/Carvera_Controller/refs/heads/main/carveracontroller/CNC.py for a good example of the kinds of data that should be stored in the class.   Don't just copy the code, but use it as a reference.
+- When possible, use appropriately defined classes to store data (as an example, store position as a Position class, rather than a tuple of floats)
+- [ ] Also review the parseAngleBracket function in https://raw.githubusercontent.com/Carvera-Community/Carvera_Controller/refs/heads/main/carveracontroller/Controller.py for guidance on how to parse the info responses and use them to update the instance variables of the CNC class.   Don't just copy the code, but use it as a reference.
+- [ ] Do the same for the diagnose command with parseBigParentheses in the same file.
 - At this point, do not implement any communication, just the methods and classes required to model the state of the mill and stub anything that communicates with the CNC machine.
 
 ---
