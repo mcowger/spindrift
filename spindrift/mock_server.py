@@ -8,10 +8,11 @@ with canned responses based on the commands.json configuration.
 import asyncio
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional, Tuple, List
 
 from .logging_config import setup_logging
 
@@ -31,11 +32,40 @@ class MockCNCServer:
         self._initial_epoch_time = None
         self._system_time_at_init = None
 
+        # Virtual filesystem
+        self.virtual_files = self._load_virtual_files()
+        self.connection_cwd = {}  # Per-connection current working directory
+
     def _load_commands(self) -> Dict[str, Any]:
         """Load command definitions from commands.json."""
         commands_file = Path(__file__).parent.parent / "artifacts" / "commands.json"
         with open(commands_file, "r") as f:
             return json.load(f)
+
+    def _load_virtual_files(self) -> Dict[str, Dict[str, Any]]:
+        """Load virtual filesystem from virtual_files.json."""
+        virtual_files_file = (
+            Path(__file__).parent.parent / "artifacts" / "virtual_files.json"
+        )
+        try:
+            with open(virtual_files_file, "r") as f:
+                files_data = json.load(f)
+                # Handle both array format and object format
+                if isinstance(files_data, list):
+                    # Array format - convert to dict keyed by path
+                    return {file_info["path"]: file_info for file_info in files_data}
+                elif isinstance(files_data, dict) and "files" in files_data:
+                    # Object format with "files" key
+                    return {
+                        file_info["path"]: file_info
+                        for file_info in files_data["files"]
+                    }
+                else:
+                    # Direct dict format
+                    return files_data
+        except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
+            self.logger.warning(f"Could not load virtual files: {e}")
+            return {}
 
     def _parse_command(
         self, command_line: str
@@ -104,6 +134,73 @@ class MockCNCServer:
         # Return the initial time plus elapsed time
         return self._initial_epoch_time + elapsed_time
 
+    # Virtual filesystem utility methods
+    def _get_connection_cwd(self, client_addr: str) -> str:
+        """Get current working directory for a connection."""
+        return self.connection_cwd.get(client_addr, "/")
+
+    def _set_connection_cwd(self, client_addr: str, path: str) -> None:
+        """Set current working directory for a connection."""
+        self.connection_cwd[client_addr] = path
+
+    def _normalize_path(self, path: str, client_addr: str) -> str:
+        """Normalize a path (resolve relative paths, clean up)."""
+        if not path.startswith("/"):
+            # Relative path - resolve against current working directory
+            cwd = self._get_connection_cwd(client_addr)
+            path = os.path.join(cwd, path)
+
+        # Normalize the path (remove . and .. components)
+        return os.path.normpath(path)
+
+    def _get_directory_contents(self, dir_path: str) -> List[str]:
+        """Get contents of a directory from virtual filesystem."""
+        dir_path = dir_path.rstrip("/")
+        if dir_path == "":
+            dir_path = "/"
+
+        contents = set()
+
+        for file_path in self.virtual_files.keys():
+            # Check if this file is in the requested directory
+            if file_path.startswith(dir_path + "/") or (
+                dir_path == "/" and file_path.startswith("/")
+            ):
+                # Get the relative path from the directory
+                if dir_path == "/":
+                    relative_path = file_path[1:]  # Remove leading /
+                else:
+                    relative_path = file_path[
+                        len(dir_path) + 1 :
+                    ]  # Remove dir_path + /
+
+                # Get the first component (file or subdirectory name)
+                if "/" in relative_path:
+                    # This is a subdirectory
+                    subdir_name = relative_path.split("/")[0]
+                    contents.add(subdir_name + "/")
+                else:
+                    # This is a file in the directory
+                    contents.add(relative_path)
+
+        return sorted(list(contents))
+
+    def _file_exists(self, file_path: str) -> bool:
+        """Check if a file exists in the virtual filesystem."""
+        return file_path in self.virtual_files
+
+    def _directory_exists(self, dir_path: str) -> bool:
+        """Check if a directory exists in the virtual filesystem."""
+        dir_path = dir_path.rstrip("/")
+        if dir_path == "":
+            return True  # Root directory always exists
+
+        # Check if any file starts with this directory path
+        for file_path in self.virtual_files.keys():
+            if file_path.startswith(dir_path + "/"):
+                return True
+        return False
+
     def _handle_time_command(self, command_line: str, cmd_def: Dict[str, Any]) -> str:
         """Handle the time command - either set time or query current time."""
         # Check if this is a time setting command (has = and a number)
@@ -133,6 +230,149 @@ class MockCNCServer:
             else:
                 return "ERROR: Time not initialized"
 
+    def _handle_filesystem_command(
+        self, command_line: str, cmd_key: str, client_addr: str
+    ) -> str:
+        """Handle filesystem commands (ls, pwd, cd, cat, mv, rm)."""
+        parts = command_line.split()
+
+        if cmd_key == "ls":
+            return self._handle_ls_command(parts, client_addr)
+        elif cmd_key == "pwd":
+            return self._handle_pwd_command(client_addr)
+        elif cmd_key == "cd":
+            return self._handle_cd_command(parts, client_addr)
+        elif cmd_key == "cat":
+            return self._handle_cat_command(parts, client_addr)
+        elif cmd_key == "mv":
+            return self._handle_mv_command(parts, client_addr)
+        elif cmd_key == "rm":
+            return self._handle_rm_command(parts, client_addr)
+        else:
+            return "ERROR: Unknown filesystem command"
+
+    def _handle_ls_command(self, parts: List[str], client_addr: str) -> str:
+        """Handle ls command."""
+        show_sizes = "-s" in parts
+
+        # Find the directory path (skip command and flags)
+        dir_path = None
+        for part in parts[1:]:  # Skip 'ls'
+            if not part.startswith("-"):
+                dir_path = part
+                break
+
+        if dir_path is None:
+            dir_path = self._get_connection_cwd(client_addr)
+        else:
+            dir_path = self._normalize_path(dir_path, client_addr)
+
+        if not self._directory_exists(dir_path):
+            return f"ERROR: Directory not found: {dir_path}"
+
+        contents = self._get_directory_contents(dir_path)
+        if not contents:
+            return ""  # Empty directory
+
+        if show_sizes:
+            # Include file sizes
+            result_lines = []
+            for item in contents:
+                if item.endswith("/"):
+                    # Directory - no size
+                    result_lines.append(item)
+                else:
+                    # File - include size
+                    file_path = self._normalize_path(
+                        os.path.join(dir_path, item), client_addr
+                    )
+                    if file_path in self.virtual_files:
+                        size = self.virtual_files[file_path]["size"]
+                        result_lines.append(f"{item} ({size} bytes)")
+                    else:
+                        result_lines.append(item)
+            return "\n".join(result_lines)
+        else:
+            return "\n".join(contents)
+
+    def _handle_pwd_command(self, client_addr: str) -> str:
+        """Handle pwd command."""
+        return self._get_connection_cwd(client_addr)
+
+    def _handle_cd_command(self, parts: List[str], client_addr: str) -> str:
+        """Handle cd command."""
+        if len(parts) < 2:
+            return "ERROR: cd requires a directory path"
+
+        new_path = self._normalize_path(parts[1], client_addr)
+
+        if not self._directory_exists(new_path):
+            return f"ERROR: Directory not found: {new_path}"
+
+        self._set_connection_cwd(client_addr, new_path)
+        return "ok"
+
+    def _handle_cat_command(self, parts: List[str], client_addr: str) -> str:
+        """Handle cat command."""
+        if len(parts) < 2:
+            return "ERROR: cat requires a file path"
+
+        file_path = self._normalize_path(parts[1], client_addr)
+
+        if not self._file_exists(file_path):
+            return f"ERROR: File not found: {file_path}"
+
+        file_info = self.virtual_files[file_path]
+        contents = file_info["contents"]
+
+        # Handle optional line limit
+        if len(parts) >= 3:
+            try:
+                limit = int(parts[2])
+                lines = contents.split("\n")
+                if limit > 0 and limit < len(lines):
+                    contents = "\n".join(lines[:limit])
+            except ValueError:
+                pass  # Ignore invalid limit, show full file
+
+        return contents
+
+    def _handle_mv_command(self, parts: List[str], client_addr: str) -> str:
+        """Handle mv command."""
+        if len(parts) < 3:
+            return "ERROR: mv requires source and destination paths"
+
+        source_path = self._normalize_path(parts[1], client_addr)
+        dest_path = self._normalize_path(parts[2], client_addr)
+
+        if not self._file_exists(source_path):
+            return f"ERROR: Source file not found: {source_path}"
+
+        # Move the file in virtual filesystem
+        file_info = self.virtual_files[source_path].copy()
+        file_info["path"] = dest_path
+
+        # Update the virtual filesystem
+        del self.virtual_files[source_path]
+        self.virtual_files[dest_path] = file_info
+
+        return "ok"
+
+    def _handle_rm_command(self, parts: List[str], client_addr: str) -> str:
+        """Handle rm command."""
+        if len(parts) < 2:
+            return "ERROR: rm requires a file path"
+
+        file_path = self._normalize_path(parts[1], client_addr)
+
+        if not self._file_exists(file_path):
+            return f"ERROR: File not found: {file_path}"
+
+        # Remove the file from virtual filesystem
+        del self.virtual_files[file_path]
+
+        return "ok"
+
     def _get_response(self, cmd_def: Dict[str, Any]) -> str:
         """Get the response for a command."""
         response = cmd_def.get("response", "ok")
@@ -145,6 +385,7 @@ class MockCNCServer:
     ):
         """Handle a client connection."""
         client_addr = writer.get_extra_info("peername")
+        client_addr_str = f"{client_addr[0]}:{client_addr[1]}"
         self.logger.info(f"Client connected from {client_addr}")
 
         # Reject concurrent connections
@@ -157,6 +398,9 @@ class MockCNCServer:
             return
 
         self.active_connection = writer
+
+        # Initialize connection state (reset working directory)
+        self._set_connection_cwd(client_addr_str, "/")
 
         try:
             while True:
@@ -186,9 +430,13 @@ class MockCNCServer:
                     response = "ERROR: Unknown command"
                     self.logger.warning(f"Unknown command: {command_line}")
                 else:
-                    # Handle time command specially
+                    # Handle special commands
                     if cmd_key == "time":
                         response = self._handle_time_command(command_line, cmd_def)
+                    elif cmd_key in ["ls", "pwd", "cd", "cat", "mv", "rm"]:
+                        response = self._handle_filesystem_command(
+                            command_line, cmd_key, client_addr_str
+                        )
                     else:
                         # Get response for known command
                         response = self._get_response(cmd_def)
@@ -213,6 +461,9 @@ class MockCNCServer:
             self.logger.error(f"Error handling client: {e}")
         finally:
             self.active_connection = None
+            # Clean up connection state
+            if client_addr_str in self.connection_cwd:
+                del self.connection_cwd[client_addr_str]
             writer.close()
             await writer.wait_closed()
             self.logger.info(f"Client {client_addr} disconnected")
