@@ -36,8 +36,8 @@ def _format_multiline_log(message: str, prefix: str) -> str:
     # Calculate padding: [LEVEL    ] [HH:MM:SS] [PREFIX]:
     # [INFO    ] = 10 chars, [HH:MM:SS] = 10 chars, [PREFIX]: varies
     # Total base padding: 10 + 1 + 10 + 1 = 22 chars
-    # Plus prefix length + ]: = len(prefix) + 3
-    padding_length = 22 + len(prefix) + 3
+    # Plus [prefix]: = len(prefix) + 2 brackets + 1 colon + 1 space = len(prefix) + 4
+    padding_length = 22 + len(prefix) + 4
     padding = " " * padding_length
 
     # Format first line with full prefix
