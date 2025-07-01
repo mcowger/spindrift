@@ -310,7 +310,7 @@ class MockCNCServer:
             return f"ERROR: Directory not found: {new_path}"
 
         self._set_connection_cwd(client_addr, new_path)
-        return "ok"
+        return ""  # cd command returns empty response per commands.json
 
     def _handle_cat_command(self, parts: List[str], client_addr: str) -> str:
         """Handle cat command."""
@@ -420,7 +420,7 @@ class MockCNCServer:
                 if not command_line:
                     continue
 
-                self.logger.info(f"Received command: {command_line}")
+                self.logger.info(f"[RECV]: {command_line}")
 
                 # Parse and process command
                 cmd_key, cmd_def = self._parse_command(command_line)
@@ -453,7 +453,7 @@ class MockCNCServer:
                     writer.write(b"ok\n")
 
                 await writer.drain()
-                self.logger.info(f"Sent response: {response}")
+                self.logger.info(f"[SEND]: {response}")
 
         except asyncio.CancelledError:
             self.logger.info("Connection cancelled")
