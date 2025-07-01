@@ -38,7 +38,7 @@
 
 ---
 
-# Protocol Mock Server (TypeScript)
+# Protocol Mock Server ()
 
 - [ ] One of the the first things done should be to create a basic server that pretends to operate like the real CNC machine.
 - [ ] It should listen for commands on port 2222.
@@ -71,8 +71,6 @@
 - [ ] It should be able to handle updates from the mock server.
 - [ ] It should be able to handle updates from the real CNC machine.
 - [ ] Use the information from artifacts/commands.json and artifacts/mockdata to understand the information available and how it is structured.
-- [ ] Find an existing GCODE parser library that can be used to parse the GCODE and MCODE commands in the `artifacts/commands.json` file.
-- [ ] The above library may need to be supplemented with custom logic to handle the custom commands and responses.
 - [ ] Of key importantce is the ability to parse the status/? responses from the CNC machine and update the state of the mill accordingly.
 - At this point, do not implement any communication, just the methods and classes required to model the state of the mill and stub anything that communicates with the CNC machine.
 
