@@ -783,7 +783,37 @@
       ],
       "example": "config-set sd acceleration 1000",
       "response": "ok"
+    },
+    "time": {
+      "name": "Set Time",
+      "description": "Sets the time in unix epoch format",
+      "parameters": [
+        "time"
+      ],
+      "response": "",
+      "example": "time = 1751357510",
+      "sends_ok": false,
+      "time_ms": 100
+    },
+    "model": {
+      "name": "Device",
+      "description": "Returns the model of the device",
+      "parameters": [],
+      "response": "model = CA1, 2, 1, 5684",
+      "example": "model",
+      "sends_ok": false,
+      "time_ms": 50
+    },
+    "ftype": {
+      "name": "File Type",
+      "description": "format that we should upload/download files in(?)",
+      "parameters": [],
+      "response": "ftype = lz",
+      "example": "model",
+      "sends_ok": false,
+      "time_ms": 50
     }
+
   },
   "host_commands": {
     "$G": {

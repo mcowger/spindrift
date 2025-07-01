@@ -17,7 +17,7 @@ Rebuild an existing CNC protocol implementation in Python to make it properly mo
 - **Core Server**: Implemented TCP server on port 2222 that simulates real CNC machine behavior
 - **Command Support**: Full support for all command types from artifacts/commands.json:
   - G-codes (G0, G1, G2, etc.)
-  - M-codes (M3, M5, M6, etc.) 
+  - M-codes (M3, M5, M6, etc.)
   - Console commands (help, version, mem, ls, etc.)
   - Host commands ($G, $I, $H, $J, ?, etc.)
 - **JSON-Driven Responses**: Uses actual response data from commands.json instead of hardcoded values
@@ -151,6 +151,53 @@ Rebuild an existing CNC protocol implementation in Python to make it properly mo
 - `tests/test_cnc_communication.py` - **NEW** Communication stub method testing (46 tests)
 - `tests/test_cnc_integration.py` - **NEW** Integration and workflow testing (11 tests)
 - `pytest.ini` - **NEW** Pytest configuration file
+
+### Session 4 - Time Functionality and Type Safety Improvements
+
+#### ✅ Time Command Implementation
+- **Mock Server Time Support**: Added complete time command handling to mock server
+  - Parses `time = <epoch>` commands for setting time in Unix epoch format
+  - Handles standalone `time` queries to return current calculated time
+  - Automatic time tracking that increments from initial set time using system time
+  - Empty response for time setting, epoch time response for queries (per commands.json)
+- **CNC Class Time Management**: Comprehensive time tracking functionality
+  - `set_time(epoch_time: float)` - sets time with validation (0 to 2^31-1 range)
+  - `get_current_time()` - returns current calculated time in Unix epoch format
+  - `get_current_datetime()` - returns datetime object for convenience
+  - `is_time_initialized()` - checks if time has been set
+  - Thread-safe implementation using system time calculations
+- **Time Integration**: Time information included in CNC string representation when available
+
+#### ✅ VS Code Configuration Enhancements
+- **Launch Configurations**: Added mock server debug configurations with proper `debugpy` type
+  - Basic mock server launch
+  - Verbose logging configuration
+  - Custom port configuration (port 3333)
+  - Updated existing configurations to use `debugpy` instead of deprecated `python` type
+- **Task Configurations**: Added mock server task configurations for background execution
+  - Basic server startup task
+  - Verbose logging task
+  - Custom port task with dedicated terminal panels
+  - Background task support with `isBackground: true`
+
+#### ✅ Type Safety Improvements
+- **WorkCoordinateSystem Fix**: Resolved type hint issues in dataclass
+  - Replaced `Position = None` with `field(default_factory=Position)`
+  - Eliminated need for `__post_init__` method
+  - Proper type safety without Optional types
+  - Prevents mutable default argument issues
+- **Import Updates**: Added `field` import from dataclasses module
+
+#### ✅ Testing and Validation
+- **Time Functionality Testing**: Comprehensive testing of time features
+  - CNC class time setting, querying, and automatic incrementing
+  - Mock server command parsing and time handling
+  - Full TCP client-server communication with time commands
+  - Integration testing with real network connections
+- **Compatibility Verification**: Ensured existing functionality remains intact
+  - All existing commands continue to work normally
+  - Type checker satisfaction confirmed
+  - No regression in existing features
 
 ## Commit History
 - `df05cf7` - Initial repository setup with Poetry and VS Code configuration

@@ -26,6 +26,11 @@ class MockCNCServer:
         self.active_connection = None
         self.logger = logging.getLogger(__name__)
 
+        # Time tracking
+        self._time_initialized = False
+        self._initial_epoch_time = None
+        self._system_time_at_init = None
+
     def _load_commands(self) -> Dict[str, Any]:
         """Load command definitions from commands.json."""
         commands_file = Path(__file__).parent.parent / "artifacts" / "commands.json"
@@ -66,6 +71,67 @@ class MockCNCServer:
                 return m_code, self.commands["m_codes"][m_code]
 
         return None, None
+
+    def _set_time(self, epoch_time: float) -> bool:
+        """Set the server time using Unix epoch format."""
+        try:
+            # Validate the epoch time (reasonable range check)
+            if epoch_time < 0 or epoch_time > 2147483647:  # Max 32-bit timestamp
+                return False
+
+            # Store the initial epoch time and current system time
+            self._initial_epoch_time = epoch_time
+            self._system_time_at_init = time.time()
+            self._time_initialized = True
+
+            return True
+        except (ValueError, TypeError):
+            return False
+
+    def _get_current_time(self) -> Optional[float]:
+        """Get the current calculated time in Unix epoch format."""
+        if (
+            not self._time_initialized
+            or self._initial_epoch_time is None
+            or self._system_time_at_init is None
+        ):
+            return None
+
+        # Calculate elapsed time since initialization
+        current_system_time = time.time()
+        elapsed_time = current_system_time - self._system_time_at_init
+
+        # Return the initial time plus elapsed time
+        return self._initial_epoch_time + elapsed_time
+
+    def _handle_time_command(self, command_line: str, cmd_def: Dict[str, Any]) -> str:
+        """Handle the time command - either set time or query current time."""
+        # Check if this is a time setting command (has = and a number)
+        if "=" in command_line:
+            # Extract the time value from command like "time = 1751357510"
+            try:
+                parts = command_line.split("=")
+                if len(parts) == 2:
+                    time_str = parts[1].strip()
+                    epoch_time = float(time_str)
+
+                    if self._set_time(epoch_time):
+                        self.logger.info(f"Time set to {epoch_time} (epoch)")
+                        return ""  # Empty response as per commands.json
+                    else:
+                        return "ERROR: Invalid time value"
+                else:
+                    return "ERROR: Invalid time format"
+            except (ValueError, IndexError):
+                return "ERROR: Invalid time format"
+        else:
+            # This is a time query - return current time
+            current_time = self._get_current_time()
+            if current_time is not None:
+                # Return time in epoch format as integer
+                return str(int(current_time))
+            else:
+                return "ERROR: Time not initialized"
 
     def _get_response(self, cmd_def: Dict[str, Any]) -> str:
         """Get the response for a command."""
@@ -120,8 +186,12 @@ class MockCNCServer:
                     response = "ERROR: Unknown command"
                     self.logger.warning(f"Unknown command: {command_line}")
                 else:
-                    # Get response for known command
-                    response = self._get_response(cmd_def)
+                    # Handle time command specially
+                    if cmd_key == "time":
+                        response = self._handle_time_command(command_line, cmd_def)
+                    else:
+                        # Get response for known command
+                        response = self._get_response(cmd_def)
 
                     # Add artificial delay (minimum 100ms, or command-specific time)
                     delay_ms = max(100, cmd_def.get("time_ms", 100))
