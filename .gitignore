@@ -158,13 +158,6 @@ cython_debug/
 #  project, it is recommended to ignore the entire .idea directory.
 .idea/
 
-# VS Code
-.vscode/settings.json
-.vscode/launch.json
-.vscode/extensions.json
-.vscode/tasks.json
-.vscode/.ropeproject
-
 # macOS
 .DS_Store
 .AppleDouble
