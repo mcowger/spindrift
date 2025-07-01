@@ -578,9 +578,10 @@ class XMODEMProtocol:
             checksum_value = (
                 (checksum[0] << 8 | checksum[1]) if crc_mode else checksum[0]
             )
-            self.log.debug(
-                f"Calculated {checksum_type}: 0x{checksum_value:04x if crc_mode else checksum_value:02x}"
-            )
+            if crc_mode:
+                self.log.debug(f"Calculated {checksum_type}: 0x{checksum_value:04x}")
+            else:
+                self.log.debug(f"Calculated {checksum_type}: 0x{checksum_value:02x}")
 
             # Send packet with retry logic
             packet_retry_count = 0
