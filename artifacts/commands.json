@@ -822,7 +822,7 @@
       "name": "File Type",
       "description": "format that we should upload/download files in(?)",
       "parameters": [],
-      "response": "ftype = lz",
+      "response": "ftype = ",
       "example": "model",
       "sends_ok": false,
       "time_ms": 50
