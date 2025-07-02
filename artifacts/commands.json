@@ -671,7 +671,8 @@
         "folder"
       ],
       "example": "ls -s /sd/",
-      "response": "ud/\nsd/"
+      "response": "ud/\nsd/",
+      "eot_terminated": true
     },
     "cd": {
       "name": "Change Directory",
@@ -697,7 +698,8 @@
         "limit"
       ],
       "example": "cat filename 10",
-      "response": "file contents"
+      "response": "file contents",
+      "eot_terminated": true
     },
     "rm": {
       "name": "Remove File",
@@ -706,7 +708,8 @@
         "filename"
       ],
       "example": "rm /sd/file.gcode",
-      "response": null
+      "response": null,
+      "eot_terminated": true
     },
     "mv": {
       "name": "Move File",
@@ -716,7 +719,18 @@
         "newfile"
       ],
       "example": "mv oldname newname",
-      "response": null
+      "response": null,
+      "eot_terminated": true
+    },
+    "mkdir": {
+      "name": "Make Directory",
+      "description": "Create a new directory",
+      "parameters": [
+        "directory"
+      ],
+      "example": "mkdir /sd/new_folder",
+      "response": null,
+      "eot_terminated": true
     },
     "play": {
       "name": "Play File",
@@ -854,7 +868,8 @@
       "example": "$I",
       "response": "[G0 G54 G17 G21 G90 G94 M0 M5 M9 T0 F3000.0000 S1.0000]",
       "sends_ok": false,
-      "time_ms": 100
+      "time_ms": 100,
+      "instant": true
     },
     "$H": {
       "name": "Home",
@@ -908,9 +923,11 @@
       "description": "Instantly returns the current running state, axis positions, feedrates and temperatures",
       "parameters": [],
       "example": "?",
-      "response": "<Idle|MPos:0.0000,0.0000,470.7656,85.1522|WPos:0.0000,0.0000,470.5656|F:15000.0,279.0|T:22.2,0.0|B:22.2,0.0>",
+      "response": "<Idle|MPos:-1.0000,-1.0000,-1.0000,0.0000,0.0000|WPos:287.6600,201.0800,78.1109,nan,0.0000|F:0.0,3000.0,100.0|S:0.0,12000.0,100.0,0,23.4,24.2|T:2,-7.208,-1|W:0.00|L:0, 0, 0, 0.0,100.0|H:1|C:2,1,0,1>",
       "sends_ok": false,
-      "time_ms": 200
+      "debug_output_only": true,
+      "time_ms": 200,
+      "instant": true
     },
     "!": {
       "name": "Feed Hold",

@@ -28,6 +28,7 @@ class CNCState(Enum):
     DISABLE = "Disable"
     SLEEP = "Sleep"
     PAUSE = "Pause"
+    INFO = "Info"
     NOT_CONNECTED = "N/A"
 
 
@@ -207,6 +208,7 @@ class CNC:
         self.max_delta = 0.0
         self.halt_reason = 1
         self.atc_state = 0
+        self.control_states = "0,0,0,0"  # Default control states
 
         # File playback information
         self.played_lines = -1
@@ -394,6 +396,12 @@ class CNC:
             elif key == "G":
                 # Active coordinate system
                 self.active_coord_system = int(value)
+
+            elif key == "C":
+                # Control states (multi-value field)
+                # This appears to be a comma-separated list of control state values
+                # For now, we'll store it as a string since the exact meaning isn't clear
+                self.control_states = value
 
         except (ValueError, IndexError):
             # Skip malformed fields

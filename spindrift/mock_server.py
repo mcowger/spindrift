@@ -13,6 +13,7 @@ import re
 import time
 import hashlib
 import io
+from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
 
@@ -62,7 +63,8 @@ class MockCNCServer:
         self.host = host
         self.port = port
         self.commands = self._load_commands()
-        self.active_connection = None
+        self.active_connections = set()  # Track up to 2 active connections
+        self.max_connections = 2
         self.logger = logging.getLogger(__name__)
 
         # Time tracking
@@ -91,19 +93,55 @@ class MockCNCServer:
                 # Handle both array format and object format
                 if isinstance(files_data, list):
                     # Array format - convert to dict keyed by path
-                    return {file_info["path"]: file_info for file_info in files_data}
+                    virtual_files = {}
+                    for file_info in files_data:
+                        # Parse timestamp if present
+                        file_data = file_info.copy()
+                        if "timestamp" in file_data:
+                            file_data["timestamp_parsed"] = self._parse_timestamp(
+                                file_data["timestamp"]
+                            )
+                        virtual_files[file_info["path"]] = file_data
+                    return virtual_files
                 elif isinstance(files_data, dict) and "files" in files_data:
                     # Object format with "files" key
-                    return {
-                        file_info["path"]: file_info
-                        for file_info in files_data["files"]
-                    }
+                    virtual_files = {}
+                    for file_info in files_data["files"]:
+                        # Parse timestamp if present
+                        file_data = file_info.copy()
+                        if "timestamp" in file_data:
+                            file_data["timestamp_parsed"] = self._parse_timestamp(
+                                file_data["timestamp"]
+                            )
+                        virtual_files[file_info["path"]] = file_data
+                    return virtual_files
                 else:
                     # Direct dict format
-                    return files_data
+                    virtual_files = {}
+                    for path, file_info in files_data.items():
+                        # Parse timestamp if present
+                        file_data = file_info.copy()
+                        if "timestamp" in file_data:
+                            file_data["timestamp_parsed"] = self._parse_timestamp(
+                                file_data["timestamp"]
+                            )
+                        virtual_files[path] = file_data
+                    return virtual_files
         except (FileNotFoundError, json.JSONDecodeError, KeyError) as e:
             self.logger.warning(f"Could not load virtual files: {e}")
             return {}
+
+    def _parse_timestamp(self, timestamp_str: str) -> Optional[datetime]:
+        """Parse timestamp string in format YYYYMMDDHHMMSS to datetime object."""
+        try:
+            return datetime.strptime(timestamp_str, "%Y%m%d%H%M%S")
+        except ValueError as e:
+            self.logger.warning(f"Invalid timestamp format '{timestamp_str}': {e}")
+            return None
+
+    def _format_timestamp(self, dt: datetime) -> str:
+        """Format datetime object to YYYYMMDDHHMMSS string."""
+        return dt.strftime("%Y%m%d%H%M%S")
 
     def _parse_command(
         self, command_line: str
@@ -139,6 +177,46 @@ class MockCNCServer:
                 return m_code, self.commands["m_codes"][m_code]
 
         return None, None
+
+    def _is_instant_command(self, command: str) -> bool:
+        """Check if a command is marked as instant in commands.json."""
+        cmd_key, cmd_def = self._parse_command(command)
+        return cmd_def is not None and cmd_def.get("instant", False)
+
+    async def _read_command_data(
+        self, reader: asyncio.StreamReader, timeout: float
+    ) -> str:
+        """Read command data, handling instant commands that don't wait for newline."""
+        buffer = b""
+
+        while True:
+            # Read one byte with timeout
+            try:
+                byte = await asyncio.wait_for(reader.read(1), timeout=timeout)
+            except asyncio.TimeoutError:
+                raise  # Re-raise timeout to be handled by caller
+
+            if not byte:
+                # Connection closed
+                if buffer:
+                    return buffer.decode("utf-8").strip()
+                else:
+                    return ""
+
+            buffer += byte
+
+            # Check if we have a newline (end of regular command)
+            if byte in (b"\n", b"\r"):
+                return buffer.decode("utf-8").strip()
+
+            # Check if current buffer is an instant command
+            try:
+                current_str = buffer.decode("utf-8")
+                if self._is_instant_command(current_str):
+                    return current_str.strip()
+            except UnicodeDecodeError:
+                # Continue reading if we have incomplete UTF-8
+                continue
 
     def _set_time(self, epoch_time: float) -> bool:
         """Set the server time using Unix epoch format."""
@@ -266,12 +344,14 @@ class MockCNCServer:
                 # Return time in epoch format as integer
                 return str(int(current_time))
             else:
-                return "ERROR: Time not initialized"
+                return str(
+                    int(time.time())
+                )  # Return current system time if not initialized
 
     def _handle_filesystem_command(
         self, command_line: str, cmd_key: str, client_addr: str
     ) -> str:
-        """Handle filesystem commands (ls, pwd, cd, cat, mv, rm)."""
+        """Handle filesystem commands (ls, pwd, cd, cat, mv, rm, mkdir)."""
         parts = command_line.split()
 
         if cmd_key == "ls":
@@ -286,6 +366,8 @@ class MockCNCServer:
             return self._handle_mv_command(parts, client_addr)
         elif cmd_key == "rm":
             return self._handle_rm_command(parts, client_addr)
+        elif cmd_key == "mkdir":
+            return self._handle_mkdir_command(parts, client_addr)
         else:
             return "ERROR: Unknown filesystem command"
 
@@ -326,7 +408,8 @@ class MockCNCServer:
                     )
                     if file_path in self.virtual_files:
                         size = self.virtual_files[file_path]["size"]
-                        result_lines.append(f"{item} ({size} bytes)")
+                        ts = self.virtual_files[file_path]["timestamp"]
+                        result_lines.append(f"{item} {size} {ts}")
                     else:
                         result_lines.append(item)
             return "\n".join(result_lines)
@@ -411,6 +494,38 @@ class MockCNCServer:
 
         return "ok"
 
+    def _handle_mkdir_command(self, parts: List[str], client_addr: str) -> str:
+        """Handle mkdir command."""
+        if len(parts) < 2:
+            return "ERROR: mkdir requires a directory name"
+
+        dir_path = self._normalize_path(parts[1], client_addr)
+
+        # Check if directory already exists
+        if self._directory_exists(dir_path):
+            return f"ERROR: Directory already exists: {dir_path}"
+
+        # Check if a file with the same name exists
+        if self._file_exists(dir_path):
+            return f"ERROR: File with same name already exists: {dir_path}"
+
+        # Ensure directory path ends with slash
+        if not dir_path.endswith("/"):
+            dir_path += "/"
+
+        # Add directory to virtual filesystem with size -1
+        self.virtual_files[dir_path] = {
+            "path": dir_path,
+            "size": -1,
+            "contents": "",  # Directories have no contents
+            "md5": "",  # Directories have no MD5
+            "timestamp": self._format_timestamp(datetime.now()),
+            "timestamp_parsed": datetime.now(),
+        }
+
+        self.logger.info(f"Created directory: {dir_path}")
+        return "ok"
+
     async def _handle_xmodem_command(
         self,
         command_line: str,
@@ -430,16 +545,19 @@ class MockCNCServer:
 
         self.logger.info(f"Starting XMODEM {cmd_key} for file: {normalized_path}")
 
-        # Create blocking I/O adapters for XMODEM protocol
+        # Get the current event loop to pass to the thread
+        loop = asyncio.get_running_loop()
+
+        # Create blocking I/O adapters for XMODEM protocol using asyncio.run_coroutine_threadsafe
         def getc(size: int, timeout: float = 1.0) -> Optional[bytes]:
             """Blocking read adapter for XMODEM protocol."""
             try:
-                # Use asyncio.run_coroutine_threadsafe to run async code in blocking context
-                loop = asyncio.get_event_loop()
-                future = asyncio.ensure_future(
-                    asyncio.wait_for(reader.read(size), timeout)
+                # Create a future for the read operation
+                future = asyncio.run_coroutine_threadsafe(
+                    asyncio.wait_for(reader.read(size), timeout), loop
                 )
-                data = loop.run_until_complete(future)
+                # Wait for the result (this blocks the thread but not the event loop)
+                data = future.result(timeout + 1.0)
                 if len(data) == size:
                     return data
                 else:
@@ -459,12 +577,13 @@ class MockCNCServer:
         def putc(data: bytes, timeout: float = 1.0) -> Optional[int]:
             """Blocking write adapter for XMODEM protocol."""
             try:
-                loop = asyncio.get_event_loop()
+                # Create a future for the write operation
                 writer.write(data)
-                future = asyncio.ensure_future(
-                    asyncio.wait_for(writer.drain(), timeout)
+                future = asyncio.run_coroutine_threadsafe(
+                    asyncio.wait_for(writer.drain(), timeout), loop
                 )
-                loop.run_until_complete(future)
+                # Wait for the result (this blocks the thread but not the event loop)
+                future.result(timeout + 1.0)
                 self.logger.debug(f"putc: sent {len(data)} bytes")
                 return len(data)
             except asyncio.TimeoutError:
@@ -480,21 +599,28 @@ class MockCNCServer:
         self.logger.debug("Creating XMODEM protocol instance in 8K mode")
         xmodem = XMODEMProtocol(getc, putc, mode="xmodem8k")
 
+        # Run XMODEM operation in a separate thread to avoid event loop conflicts
         try:
             if cmd_key == "upload":
-                return await self._handle_upload(xmodem, normalized_path, client_addr)
+                result = await asyncio.to_thread(
+                    self._handle_upload_sync, xmodem, normalized_path, client_addr
+                )
             elif cmd_key == "download":
-                return await self._handle_download(xmodem, normalized_path, client_addr)
+                result = await asyncio.to_thread(
+                    self._handle_download_sync, xmodem, normalized_path, client_addr
+                )
+            else:
+                result = f"ERROR: Unknown XMODEM command: {cmd_key}"
+
+            return result
         except Exception as e:
             self.logger.error(f"XMODEM {cmd_key} error: {e}")
             return f"ERROR: {cmd_key} failed - {str(e)}"
 
-        return ""
-
-    async def _handle_upload(
+    def _handle_upload_sync(
         self, xmodem: XMODEMProtocol, filepath: str, client_addr: str
     ) -> str:
-        """Handle file upload using XMODEM protocol."""
+        """Handle file upload using XMODEM protocol (synchronous version for threading)."""
         self.logger.info(f"Starting XMODEM upload receive for: {filepath}")
         self.logger.debug(f"Upload initiated by client: {client_addr}")
 
@@ -532,10 +658,10 @@ class MockCNCServer:
             )
             return ""  # Empty response for successful upload
 
-    async def _handle_download(
+    def _handle_download_sync(
         self, xmodem: XMODEMProtocol, filepath: str, client_addr: str
     ) -> str:
-        """Handle file download using XMODEM protocol."""
+        """Handle file download using XMODEM protocol (synchronous version for threading)."""
         self.logger.info(f"Starting XMODEM download send for: {filepath}")
         self.logger.debug(f"Download requested by client: {client_addr}")
 
@@ -584,15 +710,21 @@ class MockCNCServer:
             # Mark as binary file
             filepath += ".b64"
 
+        # Generate current timestamp
+        current_time = datetime.now()
+        timestamp_str = self._format_timestamp(current_time)
+
         self.virtual_files[filepath] = {
             "path": filepath,
             "size": len(data),
             "contents": content,
             "md5": md5_hash,
+            "timestamp": timestamp_str,
+            "timestamp_parsed": current_time,
         }
 
         self.logger.info(
-            f"Added file to virtual filesystem: {filepath} ({len(data)} bytes)"
+            f"Added file to virtual filesystem: {filepath} ({len(data)} bytes, timestamp: {timestamp_str})"
         )
 
     def _get_response(self, cmd_def: Dict[str, Any]) -> str:
@@ -610,16 +742,21 @@ class MockCNCServer:
         client_addr_str = f"{client_addr[0]}:{client_addr[1]}"
         self.logger.info(f"Client connected from {client_addr}")
 
-        # Reject concurrent connections
-        if self.active_connection is not None:
-            self.logger.warning(f"Rejecting concurrent connection from {client_addr}")
-            writer.write(b"ERROR: Server busy, only one connection allowed\n")
+        # Check connection limit
+        if len(self.active_connections) >= self.max_connections:
+            self.logger.warning(
+                f"Rejecting connection from {client_addr} - max {self.max_connections} connections reached"
+            )
+            writer.write(
+                f"ERROR: Server busy, maximum {self.max_connections} connections allowed\n".encode()
+            )
             await writer.drain()
             writer.close()
             await writer.wait_closed()
             return
 
-        self.active_connection = writer
+        # Add connection to active set
+        self.active_connections.add(writer)
 
         # Initialize connection state (reset working directory)
         self._set_connection_cwd(client_addr_str, "/")
@@ -627,25 +764,26 @@ class MockCNCServer:
         try:
             while True:
                 # Read command from client with 10-second timeout
+                # Handle instant commands that don't wait for newline
                 try:
-                    data = await asyncio.wait_for(reader.readline(), timeout=10.0)
+                    command_line = await self._read_command_data(reader, 10.0)
                 except asyncio.TimeoutError:
                     self.logger.info(
                         f"Client {client_addr} timed out after 10 seconds of inactivity"
                     )
                     break
 
-                if not data:
+                if not command_line:
                     break
 
-                command_line = data.decode("utf-8").strip()
-                if not command_line:
-                    continue
-
-                self.logger.info(_format_multiline_log(command_line, "RECV"))
-
-                # Parse and process command
+                # Parse and process command first to get cmd_def
                 cmd_key, cmd_def = self._parse_command(command_line)
+
+                # Log command at appropriate level based on debug_output_only field
+                if cmd_def and cmd_def.get("debug_output_only", False):
+                    self.logger.debug(_format_multiline_log(command_line, "RECV"))
+                else:
+                    self.logger.info(_format_multiline_log(command_line, "RECV"))
 
                 if cmd_def is None or cmd_key is None:
                     # Unknown command
@@ -655,7 +793,7 @@ class MockCNCServer:
                     # Handle special commands
                     if cmd_key == "time":
                         response = self._handle_time_command(command_line, cmd_def)
-                    elif cmd_key in ["ls", "pwd", "cd", "cat", "mv", "rm"]:
+                    elif cmd_key in ["ls", "pwd", "cd", "cat", "mv", "rm", "mkdir"]:
                         response = self._handle_filesystem_command(
                             command_line, cmd_key, client_addr_str
                         )
@@ -672,22 +810,31 @@ class MockCNCServer:
                     delay_ms = max(100, cmd_def.get("time_ms", 100))
                     await asyncio.sleep(delay_ms / 1000.0)
 
-                # Send response
-                writer.write(f"{response}\n".encode("utf-8"))
+                # Send response with optional EOT termination
+                if cmd_def and cmd_def.get("eot_terminated", False):
+                    writer.write(f"{response}\x04\n".encode("utf-8"))
+                else:
+                    writer.write(f"{response}\n".encode("utf-8"))
 
                 # Send 'ok' if required
                 if cmd_def and cmd_def.get("sends_ok", False):
                     writer.write(b"ok\n")
 
                 await writer.drain()
-                self.logger.info(_format_multiline_log(response, "SEND"))
+
+                # Log response at appropriate level based on debug_output_only field
+                if cmd_def and cmd_def.get("debug_output_only", False):
+                    self.logger.debug(_format_multiline_log(response, "SEND"))
+                else:
+                    self.logger.info(_format_multiline_log(response, "SEND"))
 
         except asyncio.CancelledError:
             self.logger.info("Connection cancelled")
         except Exception as e:
             self.logger.error(f"Error handling client: {e}")
         finally:
-            self.active_connection = None
+            # Remove connection from active set
+            self.active_connections.discard(writer)
             # Clean up connection state
             if client_addr_str in self.connection_cwd:
                 del self.connection_cwd[client_addr_str]
