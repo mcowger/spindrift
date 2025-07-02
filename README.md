@@ -19,19 +19,16 @@ Run tests:
 poetry run pytest
 ```
 
-## Mock Server
+## Mock CNC Server
 
-Run the mock CNC server for testing:
+The Spindrift Mock CNC Server provides a comprehensive TCP server that emulates a Carvera CNC machine for development and testing. It supports hundreds of G-codes, M-codes, and console commands, includes a virtual filesystem with XMODEM file transfers, and provides realistic hardware behavior including connection limits and timeouts. The server is ideal for testing CNC applications without requiring physical hardware access.
 
 ```bash
-# Using poetry (recommended)
+# Basic startup (localhost:2222)
 poetry run spindrift mock-server
 
-# With custom host/port
-poetry run spindrift mock-server --host 0.0.0.0 --port 3333
-
-# Enable verbose logging
-poetry run spindrift mock-server --verbose
+# Custom host/port and verbose logging
+poetry run spindrift mock-server --host 0.0.0.0 --port 3333 --verbose
 ```
 
-The mock server runs on `localhost:2222` by default and simulates a CNC machine by responding to G-codes, M-codes, and console commands based on the configuration in `artifacts/commands.json`.
+📖 **[Complete Mock Server Documentation](README.mock_server.md)** - Comprehensive guide including all supported commands, virtual filesystem usage, XMODEM transfers, testing strategies, and troubleshooting.
